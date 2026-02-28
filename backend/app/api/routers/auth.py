@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
 from app.api.deps import AuthServiceDep, CurrentUserIdDep, UserRepositoryDep
-from app.models.user import User, UserCreate, UserResponse
+from app.models.user import User, UserCreate
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -19,11 +19,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=User)
 async def register(user_create: UserCreate, auth: AuthServiceDep) -> User:
     try:
         user = await auth.register(user_create)
-        return UserResponse.model_validate(user)
+        return user
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -41,7 +41,7 @@ async def login(login_data: LoginRequest, auth: AuthServiceDep) -> dict:
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "user": UserResponse.model_validate(user),
+        "user": user,
     }
 
 
@@ -56,7 +56,7 @@ async def refresh_token(refresh_data: RefreshRequest, auth: AuthServiceDep) -> d
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=User)
 async def get_current_user(
     user_id: CurrentUserIdDep,
     user_repo: UserRepositoryDep,

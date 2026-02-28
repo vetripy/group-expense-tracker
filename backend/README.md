@@ -29,10 +29,13 @@ docker-compose up --build
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Register user |
-| POST | `/api/v1/auth/login` | Login (returns tokens) |
-| POST | `/api/v1/auth/refresh` | Refresh access token |
-| GET | `/api/v1/auth/me` | Current user (requires Bearer token) |
-| GET | `/health` | Health check |
+
+| Method | Endpoint                | Description                          |
+| ------ | ----------------------- | ------------------------------------ |
+| POST   | `/api/v1/auth/register` | Register user                        |
+| POST   | `/api/v1/auth/login`    | Login (returns tokens)               |
+| POST   | `/api/v1/auth/refresh`  | Refresh access token                 |
+| GET    | `/api/v1/auth/me`       | Current user (requires Bearer token) |
+| GET    | `/health`               | Health check                         |
+
+

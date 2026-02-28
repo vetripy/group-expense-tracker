@@ -34,9 +34,3 @@ class User(UserBase):
     id: PyObjectId | None = None
     is_active: bool = True
     created_at: datetime | None = None
-
-
-class UserResponse(User):
-    """API response schema for user (alias for User)."""
-
-    pass
