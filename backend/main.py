@@ -16,6 +16,8 @@ async def lifespan(app: FastAPI):
     await database.connect()
     # Create indexes for performance
     await database.db.users.create_index("email", unique=True)
+    await database.db.groups.create_index("members.user_id")
+    await database.db.expenses.create_index([("group_id", 1), ("date", -1)])
     yield
     await database.disconnect()
 
