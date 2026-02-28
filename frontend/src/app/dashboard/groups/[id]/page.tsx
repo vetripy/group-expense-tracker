@@ -111,9 +111,7 @@ export default function GroupDetailPage({ params }: { params: { id: string } }) 
               <span className="text-gray-900 dark:text-gray-100">
                 {m.user_id === user?.id
                   ? "You"
-                  : (m.full_name && m.full_name.trim() !== ""
-                      ? m.full_name
-                      : m.user_id.slice(0, 8) + "…")}
+                  : (m.full_name?.trim() || "—")}
               </span>
               <div className="flex items-center gap-2">
                 <span

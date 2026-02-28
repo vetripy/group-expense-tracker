@@ -41,13 +41,26 @@ export default function StatsPage({ params }: { params: { id: string } }) {
     api.get<Group>(`/groups/${id}`).then((r) => setGroup(r.data)).catch(() => {});
   }, [id]);
 
+  const [period, setPeriod] = useState<"all" | "month" | "year">("all");
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
   useEffect(() => {
+    setLoading(true);
+    const params: Record<string, string | number> = { period };
+    if (period === "month") {
+      params.year = currentYear;
+      params.month = currentMonth;
+    } else if (period === "year") {
+      params.year = currentYear;
+    }
     api
-      .get<Stats>(`/groups/${id}/stats`)
+      .get<Stats>(`/groups/${id}/stats`, { params })
       .then((r) => setStats(r.data))
       .catch(() => setError("Failed to load stats"))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, period]);
 
   if (loading) return <PageLoader />;
   if (error)
@@ -75,7 +88,26 @@ export default function StatsPage({ params }: { params: { id: string } }) {
         </Link>
       </div>
 
-      <h1 className="mb-6 text-xl font-bold text-gray-900 dark:text-gray-100">Statistics</h1>
+      <h1 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">Statistics</h1>
+
+      <div className="mb-4">
+        <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Breakdown period</p>
+        <div className="flex gap-2">
+          {(["all", "month", "year"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                period === p
+                  ? "border-primary-600 bg-primary-600 text-white dark:border-primary-500 dark:bg-primary-500 dark:text-white"
+                  : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              }`}
+            >
+              {p === "all" ? "All time" : p === "month" ? "This month" : "This year"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -91,7 +123,7 @@ export default function StatsPage({ params }: { params: { id: string } }) {
           </p>
           {topSpender && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              User {topSpender.user_id.slice(0, 8)}…
+              {topSpender.full_name?.trim() || "—"}
             </p>
           )}
         </div>

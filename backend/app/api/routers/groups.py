@@ -266,14 +266,43 @@ async def add_custom_category(
 
 # ---- Stats endpoint ----
 
+def _build_date_match(period: str, year: int | None, month: int | None):
+    """Build $match stage for dateObj based on period. Returns None for 'all'."""
+    from datetime import datetime, timezone
+    if period == "all" or period is None:
+        return None
+    if period == "year" and year is not None:
+        start = datetime(year, 1, 1, tzinfo=timezone.utc)
+        end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        return {"dateObj": {"$gte": start, "$lt": end}}
+    if period == "month" and year is not None and month is not None:
+        start = datetime(year, month, 1, tzinfo=timezone.utc)
+        if month == 12:
+            end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        else:
+            end = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+        return {"dateObj": {"$gte": start, "$lt": end}}
+    return None
+
+
 @router.get("/{group_id}/stats")
 async def get_group_stats(
     group_id: str,
     group: GroupMemberDep,
     db: DatabaseDep,
+    user_repo: UserRepositoryDep,
+    period: str = Query("all", description="all | month | year"),
+    year: int | None = Query(None, ge=2000, le=2100),
+    month: int | None = Query(None, ge=1, le=12),
 ) -> dict:
-    """Expense statistics: total, by category, by user, monthly breakdown (chart-ready)."""
-    # Use $dateFromString for date field (stored as string YYYY-MM-DD) or $convert for datetime
+    """Expense statistics. Use period=month with year/month or period=year with year for filtered pie/total."""
+    from datetime import datetime
+    now = datetime.utcnow()
+    if period == "month" and (year is None or month is None):
+        year, month = now.year, now.month
+    if period == "year" and year is None:
+        year = now.year
+
     pipeline = [
         {"$match": {"group_id": group_id}},
         {
@@ -287,32 +316,35 @@ async def get_group_stats(
                 }
             }
         },
-        {
-            "$facet": {
-                "total": [{"$group": {"_id": None, "total": {"$sum": "$amount"}}}],
-                "by_category": [
-                    {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}},
-                    {"$sort": {"total": -1}},
-                ],
-                "by_user": [
-                    {"$group": {"_id": "$created_by", "total": {"$sum": "$amount"}}},
-                    {"$sort": {"total": -1}},
-                ],
-                "monthly": [
-                    {
-                        "$group": {
-                            "_id": {
-                                "year": {"$year": "$dateObj"},
-                                "month": {"$month": "$dateObj"},
-                            },
-                            "total": {"$sum": "$amount"},
-                        }
-                    },
-                    {"$sort": {"_id.year": 1, "_id.month": 1}},
-                ],
-            }
-        },
     ]
+    date_match = _build_date_match(period, year, month)
+    if date_match:
+        pipeline.append({"$match": date_match})
+    pipeline.append({
+        "$facet": {
+            "total": [{"$group": {"_id": None, "total": {"$sum": "$amount"}}}],
+            "by_category": [
+                {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}},
+                {"$sort": {"total": -1}},
+            ],
+            "by_user": [
+                {"$group": {"_id": "$created_by", "total": {"$sum": "$amount"}}},
+                {"$sort": {"total": -1}},
+            ],
+            "monthly": [
+                {
+                    "$group": {
+                        "_id": {
+                            "year": {"$year": "$dateObj"},
+                            "month": {"$month": "$dateObj"},
+                        },
+                        "total": {"$sum": "$amount"},
+                    }
+                },
+                {"$sort": {"_id.year": 1, "_id.month": 1}},
+            ],
+        }
+    })
     cursor = db.expenses.aggregate(pipeline)
     result = await cursor.to_list(length=1)
     if not result:
@@ -324,10 +356,19 @@ async def get_group_stats(
         }
     data = result[0]
     total_val = data["total"][0]["total"] if data["total"] else 0
+    by_user_raw = [{"user_id": x["_id"], "total": round(x["total"], 2)} for x in data["by_user"]]
+    by_user_enriched = []
+    for u in by_user_raw:
+        usr = await user_repo.get_by_id(u["user_id"])
+        by_user_enriched.append({
+            "user_id": u["user_id"],
+            "total": u["total"],
+            "full_name": usr.full_name if usr else None,
+        })
     return {
         "total": round(total_val, 2),
         "by_category": [{"category": x["_id"], "total": round(x["total"], 2)} for x in data["by_category"]],
-        "by_user": [{"user_id": x["_id"], "total": round(x["total"], 2)} for x in data["by_user"]],
+        "by_user": by_user_enriched,
         "monthly": [
             {"year": x["_id"]["year"], "month": x["_id"]["month"], "total": round(x["total"], 2)}
             for x in data["monthly"]

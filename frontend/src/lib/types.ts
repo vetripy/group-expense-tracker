@@ -30,6 +30,6 @@ export interface Expense {
 export interface Stats {
   total: number;
   by_category: { category: string; total: number }[];
-  by_user: { user_id: string; total: number }[];
+  by_user: { user_id: string; total: number; full_name?: string | null }[];
   monthly: { year: number; month: number; total: number }[];
 }

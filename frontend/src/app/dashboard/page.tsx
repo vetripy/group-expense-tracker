@@ -51,16 +51,19 @@ export default function DashboardPage() {
           }
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="mt-6 mb-8 flex list-none flex-col gap-6 p-0">
           {groups.map((g) => (
-            <Link key={g.id} href={`/dashboard/groups/${g.id}`}>
-              <li className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
+            <li key={g.id}>
+              <Link
+                href={`/dashboard/groups/${g.id}`}
+                className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+              >
                 <h3 className="font-medium text-gray-900 dark:text-gray-100">{g.name}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {g.members.length} member{g.members.length !== 1 ? "s" : ""}
                 </p>
-              </li>
-            </Link>
+              </Link>
+            </li>
           ))}
         </ul>
       )}

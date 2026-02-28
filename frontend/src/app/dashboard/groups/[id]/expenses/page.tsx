@@ -78,34 +78,59 @@ export default function ExpensesPage({ params }: { params: { id: string } }) {
         />
       ) : (
         <>
-          <ul className="space-y-3">
-            {expenses.map((e) => (
-              <li
-                key={e.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">{e.title}</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {e.category} · {format(new Date(e.date), "MMM d, yyyy")}
-                    </p>
-                    {e.description && (
-                      <p className="mt-1 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
-                        {e.description}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ${e.amount.toFixed(2)}
-                  </span>
-                </div>
-                {e.created_by === user?.id && (
-                  <span className="mt-2 inline-block text-xs text-gray-400">You</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {(() => {
+            const byMonth: Record<string, Expense[]> = {};
+            expenses.forEach((e) => {
+              const d = new Date(e.date);
+              const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+              if (!byMonth[key]) byMonth[key] = [];
+              byMonth[key].push(e);
+            });
+            const monthKeys = Object.keys(byMonth).sort((a, b) => b.localeCompare(a));
+            return (
+              <div className="space-y-6">
+                {monthKeys.map((key) => {
+                  const [y, m] = key.split("-").map(Number);
+                  const heading = format(new Date(y, m - 1), "MMMM yyyy");
+                  return (
+                    <section key={key}>
+                      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {heading}
+                      </h2>
+                      <ul className="space-y-3">
+                        {byMonth[key].map((e) => (
+                          <li
+                            key={e.id}
+                            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-medium text-gray-900 dark:text-gray-100">{e.title}</h3>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                  {e.category} · {format(new Date(e.date), "MMM d, yyyy")}
+                                </p>
+                                {e.description && (
+                                  <p className="mt-1 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
+                                    {e.description}
+                                  </p>
+                                )}
+                              </div>
+                              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                ${e.amount.toFixed(2)}
+                              </span>
+                            </div>
+                            {e.created_by === user?.id && (
+                              <span className="mt-2 inline-block text-xs text-gray-400">You</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {total > limit && (
             <div className="mt-6 flex justify-center gap-2">
