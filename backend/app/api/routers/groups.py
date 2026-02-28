@@ -12,6 +12,7 @@ from app.api.deps import (
     GroupMemberDep,
     GroupRepositoryDep,
     GroupServiceDep,
+    UserRepositoryDep,
 )
 from app.models.expense import (
     PREDEFINED_CATEGORIES,
@@ -54,33 +55,55 @@ async def create_group(
 async def list_groups(
     user_id: CurrentUserIdDep,
     group_repo: GroupRepositoryDep,
+    user_repo: UserRepositoryDep,
 ) -> list[Group]:
-    """List all groups the current user belongs to."""
+    """List all groups the current user belongs to. Members include full_name."""
     groups = await group_repo.get_user_groups(user_id)
-    return [
-        Group(
-            id=g.id,
-            name=g.name,
-            created_by=g.created_by,
-            members=g.members,
-            custom_categories=g.custom_categories,
-            created_at=g.created_at,
+    result = []
+    for g in groups:
+        members_enriched = []
+        for m in g.members:
+            uid = m.get("user_id", "")
+            user = await user_repo.get_by_id(uid)
+            members_enriched.append({
+                "user_id": uid,
+                "role": m.get("role", "member"),
+                "full_name": user.full_name if user else None,
+            })
+        result.append(
+            Group(
+                id=g.id,
+                name=g.name,
+                created_by=g.created_by,
+                members=members_enriched,
+                custom_categories=g.custom_categories,
+                created_at=g.created_at,
+            )
         )
-        for g in groups
-    ]
+    return result
 
 
 @router.get("/{group_id}", response_model=Group)
 async def get_group(
     group_id: str,
     group: GroupMemberDep,
+    user_repo: UserRepositoryDep,
 ) -> Group:
-    """Get a group by ID (must be a member)."""
+    """Get a group by ID (must be a member). Returns members with full_name."""
+    members_enriched = []
+    for m in group.members:
+        user_id = m.get("user_id", "")
+        user = await user_repo.get_by_id(user_id)
+        members_enriched.append({
+            "user_id": user_id,
+            "role": m.get("role", "member"),
+            "full_name": user.full_name if user else None,
+        })
     return Group(
         id=group.id,
         name=group.name,
         created_by=group.created_by,
-        members=group.members,
+        members=members_enriched,
         custom_categories=group.custom_categories,
         created_at=group.created_at,
     )
